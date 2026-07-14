@@ -1,7 +1,12 @@
 {
   "items": [
     {
-      "song": "Reckless",
+      "song": "Don't You Wanna Play?",
+      "artist": "Seeb & Julie Bergan",
+      "url": "https://lossless.echomusic.fun/Music/a12ko-seeb_-_don_t_you_wanna_play.flac"
+    },
+    {
+      "song": "Echo",
       "artist": "Gryffin & MØ",
       "url": "https://lossless.echomusic.fun/Music/a12ko-gryffin_-_reckless.flac"
     },
