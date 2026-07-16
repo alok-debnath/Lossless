@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#121212">
     <title>Submit Lossless Track - Echo Music Lossless Hub</title>
     <link class="brand-favicon" rel="icon" type="image/png" href="App Logo/echo.png">
-    <link rel="stylesheet" href="styles.css?v=4">
+    <link rel="stylesheet" href="styles.css?v=5">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
@@ -56,48 +56,15 @@
 
                 <div id="upload-panel">
                     <div class="form-group">
-                        <label class="form-label">Lossless Audio File</label>
+                        <label class="form-label">Lossless Audio File(s)</label>
                         <div id="drop-zone" class="drag-drop-box">
-                            <input type="file" id="file-input" accept="audio/flac,.flac" style="display: none;">
+                            <input type="file" id="file-input" accept="audio/flac,.flac" multiple style="display: none;">
                             <i class="fas fa-cloud-upload-alt drop-icon"></i>
                             <h4 class="drop-text">Drag &amp; drop audio here, or <span class="browse-link">browse files</span></h4>
-                            <p class="drop-subtext">Supports .flac only &mdash; Max 99 MB</p>
+                            <p class="drop-subtext">Supports .flac only &mdash; Max 99 MB each &mdash; select multiple files for a batch submission</p>
                         </div>
 
-                        <div id="file-info-banner" class="file-details-banner" style="display: none;">
-                            <div class="file-meta">
-                                <i class="fas fa-file-audio file-icon"></i>
-                                <div>
-                                    <strong id="selected-file-name" class="file-name-text">audio.flac</strong>
-                                    <span id="selected-file-size" class="file-size-text">0.00 MB</span>
-                                </div>
-                            </div>
-                            <button type="button" id="remove-file-btn" class="btn-remove-file" title="Remove File">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="validation-container">
-                        <h4 class="validation-title">Technical Requirements Validation</h4>
-                        <div class="validation-list">
-                            <div class="validation-item" id="check-format">
-                                <i class="fas fa-circle-notch fa-spin check-status"></i>
-                                <span>File format must be <code>.flac</code></span>
-                            </div>
-                            <div class="validation-item" id="check-size">
-                                <i class="fas fa-circle-notch fa-spin check-status"></i>
-                                <span>File size must be equal to or less than <strong>99 MB</strong></span>
-                            </div>
-                            <div class="validation-item" id="check-duration">
-                                <i class="fas fa-circle-notch fa-spin check-status"></i>
-                                <span>File must contain valid fLaC signature</span>
-                            </div>
-                            <div class="validation-item" id="check-aspect" style="display: none;">
-                                <i class="fas fa-circle-notch fa-spin check-status"></i>
-                                <span>Hidden item to preserve DOM structure</span>
-                            </div>
-                        </div>
+                        <div id="file-list" class="file-list"></div>
                     </div>
                 </div>
 
@@ -125,7 +92,7 @@
                     </div>
                 </div>
 
-                <div class="form-group" style="margin-top: 2rem;">
+                <div id="songs-to-link-section" class="form-group" style="margin-top: 2rem; display: none;">
                     <label class="form-label">
                         Songs to Link
                         <span class="song-count-badge" id="song-count-badge">0 songs</span>
@@ -175,7 +142,7 @@
         </div>
     </footer>
 
-    <script src="contribute.js?v=4"></script>
+    <script src="contribute.js?v=5"></script>
 </body>
 
 </html>

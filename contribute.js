@@ -6,11 +6,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let gitHubAccessToken = localStorage.getItem('gh_access_token') || null;
     let gitHubUsername = null;
-    let selectedFile = null;
-    let fileIsValid = false;
-    let trackSourceMode = 'upload'; 
+    let selectedFiles = []; // { id, file, isValid, song, artist }
+    let fileEntryIdCounter = 0;
+    let activeSearchUnwirers = []; // cleanup fns from wireYtSearchBox, for rows wiped in bulk (resetUploadForm)
+    let trackSourceMode = 'upload';
     let selectedExistingUrl = null;
-    let allTrackItems = []; 
+    let allTrackItems = [];
 
     const loginSection  = document.getElementById('login-section');
     const formSection   = document.getElementById('form-section');
@@ -27,16 +28,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadPanel    = document.getElementById('upload-panel');
     const fileInput      = document.getElementById('file-input');
     const dropZone       = document.getElementById('drop-zone');
-    const fileInfoBanner = document.getElementById('file-info-banner');
-    const selectedFileName = document.getElementById('selected-file-name');
-    const selectedFileSize = document.getElementById('selected-file-size');
-    const removeFileBtn  = document.getElementById('remove-file-btn');
-    const validationVideo = document.getElementById('validation-video-element');
+    const fileListEl     = document.getElementById('file-list');
 
-    const checkFormat   = document.getElementById('check-format');
-    const checkSize     = document.getElementById('check-size');
-    const checkDuration = document.getElementById('check-duration');
-    const checkAspect   = document.getElementById('check-aspect');
+    const songsToLinkSection = document.getElementById('songs-to-link-section');
 
     const existingPanel          = document.getElementById('existing-panel');
     const existingSearch         = document.getElementById('existing-search');
@@ -147,17 +141,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetUploadForm() {
-        
-        trackSourceMode = 'upload';
-        uploadPanel.style.display   = 'block';
-        existingPanel.style.display = 'none';
 
-        selectedFile  = null;
-        fileIsValid   = false;
-        fileInfoBanner.style.display = 'none';
-        dropZone.style.display       = 'flex';
-        fileInput.value              = '';
-        resetChecklist();
+        activeSearchUnwirers.forEach(unwire => unwire());
+        activeSearchUnwirers = [];
+
+        trackSourceMode = 'upload';
+        uploadPanel.style.display    = 'block';
+        existingPanel.style.display  = 'none';
+        songsToLinkSection.style.display = 'none';
+
+        selectedFiles = [];
+        fileListEl.innerHTML   = '';
+        dropZone.style.display = 'flex';
+        fileInput.value        = '';
 
         selectedExistingUrl = null;
         existingSearch.value = '';
@@ -181,11 +177,13 @@ document.addEventListener('DOMContentLoaded', () => {
         radio.addEventListener('change', () => {
             trackSourceMode = radio.value;
             if (trackSourceMode === 'upload') {
-                uploadPanel.style.display   = 'block';
-                existingPanel.style.display = 'none';
+                uploadPanel.style.display        = 'block';
+                existingPanel.style.display      = 'none';
+                songsToLinkSection.style.display = 'none';
             } else {
-                uploadPanel.style.display   = 'none';
-                existingPanel.style.display = 'block';
+                uploadPanel.style.display        = 'none';
+                existingPanel.style.display      = 'block';
+                songsToLinkSection.style.display = 'block';
             }
             updateSubmitButtonState();
         });
@@ -209,99 +207,215 @@ document.addEventListener('DOMContentLoaded', () => {
 
     dropZone.addEventListener('drop', (e) => {
         const files = e.dataTransfer.files;
-        if (files.length > 0) handleSelectedFile(files[0]);
+        if (files.length > 0) handleSelectedFiles(files);
     });
 
     fileInput.addEventListener('change', (e) => {
-        if (fileInput.files.length > 0) handleSelectedFile(fileInput.files[0]);
+        if (fileInput.files.length > 0) handleSelectedFiles(fileInput.files);
+        fileInput.value = '';
     });
 
-    removeFileBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectedFile  = null;
-        fileIsValid   = false;
-        fileInfoBanner.style.display = 'none';
-        dropZone.style.display       = 'flex';
-        fileInput.value              = '';
-        resetChecklist();
-        updateSubmitButtonState();
-    });
-
-    function handleSelectedFile(file) {
-        selectedFile = file;
-        selectedFileName.textContent = file.name;
-        selectedFileSize.textContent = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
-        dropZone.style.display       = 'none';
-        fileInfoBanner.style.display = 'flex';
-        runFileValidation(file);
-    }
-
-    function resetChecklist() {
-        [checkFormat, checkSize, checkDuration, checkAspect].forEach(item => {
-            item.className = 'validation-item';
-            item.querySelector('.check-status').className = 'fas fa-circle-notch fa-spin check-status';
+    function handleSelectedFiles(fileList) {
+        Array.from(fileList).forEach(file => {
+            const entry = {
+                id: ++fileEntryIdCounter,
+                file,
+                isValid: false,
+                song: '',
+                artist: '',
+                aliases: [] // extra { id, song, artist } sharing this same file's URL
+            };
+            selectedFiles.push(entry);
+            renderFileCard(entry);
+            runFileValidation(entry);
         });
+        dropZone.style.display = selectedFiles.length > 0 ? 'none' : 'flex';
+        updateSubmitButtonState();
     }
 
-    function setCheckState(element, state, customMsg = '') {
-        const icon = element.querySelector('.check-status');
-        element.className = 'validation-item';
-        if (state === 'success') {
-            element.classList.add('valid');
-            icon.className = 'fas fa-check-circle check-status';
-        } else if (state === 'error') {
-            element.classList.add('invalid');
-            icon.className = 'fas fa-times-circle check-status';
-        } else {
-            icon.className = 'fas fa-circle-notch fa-spin check-status';
-        }
-        if (customMsg) element.querySelector('span').innerHTML = customMsg;
+    function removeFileEntry(id) {
+        selectedFiles = selectedFiles.filter(f => f.id !== id);
+        const card = fileListEl.querySelector(`[data-file-id="${id}"]`);
+        if (card) card.remove();
+        dropZone.style.display = selectedFiles.length > 0 ? 'none' : 'flex';
+        updateSubmitButtonState();
     }
 
-    async function runFileValidation(file) {
-        resetChecklist();
-        fileIsValid = false;
+    function renderFileCard(entry) {
+        const card = document.createElement('div');
+        card.className = 'file-card';
+        card.dataset.fileId = entry.id;
+        card.innerHTML = `
+            <div class="file-card-top">
+                <div class="file-meta">
+                    <i class="fas fa-file-audio file-icon"></i>
+                    <div>
+                        <strong class="file-name-text">${escapeHtml(entry.file.name)}</strong>
+                        <span class="file-size-text">${(entry.file.size / (1024 * 1024)).toFixed(2)} MB</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-remove-file" title="Remove File">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="file-card-status pending"><i class="fas fa-circle-notch fa-spin"></i> Validating…</div>
+            <div class="song-entry-search" style="display: none; position: relative; margin-top: 0.75rem;">
+                <div class="existing-search-box">
+                    <i class="fas fa-search existing-search-icon"></i>
+                    <input type="text" class="song-api-search" placeholder="Search YT Music for song..." autocomplete="off">
+                    <i class="fas fa-circle-notch fa-spin search-loader" style="display: none; position: absolute; right: 2.6rem; color: var(--text-dim);"></i>
+                    <button type="button" class="song-search-close" title="Close search"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="api-search-results existing-results-list" style="display: none; max-height: 250px; overflow-y: auto; margin-top: 0.5rem; position: absolute; top: 100%; left: 0; z-index: 10; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
+            </div>
+            <div class="file-card-fields song-entry-fields" style="margin-top: 0.75rem;">
+                <div class="song-entry-text-inputs">
+                    <input type="text" class="file-card-song" placeholder="Song title (e.g. Lost in Yesterday)" autocomplete="off" maxlength="120">
+                    <input type="text" class="file-card-artist" placeholder="Artist name (e.g. Tame Impala)" autocomplete="off" maxlength="120">
+                </div>
+                <div class="song-entry-actions">
+                    <button type="button" class="song-search-toggle" title="Search YT Music">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="file-card-aliases" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.6rem;"></div>
+            <button type="button" class="btn-add-song file-card-add-alias-btn" style="margin-top: 0.6rem; padding: 0.5rem 0.9rem; font-size: 0.8rem;">
+                <i class="fas fa-plus"></i> Add another song for this file
+            </button>
+        `;
+
+        card.querySelector('.btn-remove-file').addEventListener('click', () => removeFileEntry(entry.id));
+
+        const songInput   = card.querySelector('.file-card-song');
+        const artistInput = card.querySelector('.file-card-artist');
+        songInput.addEventListener('input', () => {
+            entry.song = songInput.value.trim();
+            updateSubmitButtonState();
+        });
+        artistInput.addEventListener('input', () => {
+            entry.artist = artistInput.value.trim();
+            updateSubmitButtonState();
+        });
+
+        const aliasesEl = card.querySelector('.file-card-aliases');
+        card.querySelector('.file-card-add-alias-btn').addEventListener('click', () => {
+            addFileCardAlias(entry, aliasesEl);
+        });
+
+        const unwireSearch = wireYtSearchBox(card);
+        card.querySelector('.btn-remove-file').addEventListener('click', unwireSearch);
+
+        fileListEl.appendChild(card);
+    }
+
+    let fileAliasIdCounter = 0;
+
+    // A file card's "+ Add another song for this file" row: an extra {song, artist}
+    // pair that reuses the same uploaded file's URL (no separate audio, no separate
+    // YT search — mirrors the old single-file "Songs to Link" many-songs-per-file flow).
+    function addFileCardAlias(entry, aliasesEl) {
+        const alias = { id: ++fileAliasIdCounter, song: '', artist: '' };
+        entry.aliases.push(alias);
+
+        const row = document.createElement('div');
+        row.dataset.aliasId = alias.id;
+        row.style.cssText = 'border-top: 1px dashed var(--card-border); padding-top: 0.6rem;';
+        row.innerHTML = `
+            <div class="song-entry-search" style="display: none; position: relative; margin-bottom: 0.5rem;">
+                <div class="existing-search-box">
+                    <i class="fas fa-search existing-search-icon"></i>
+                    <input type="text" class="song-api-search" placeholder="Search YT Music for song..." autocomplete="off">
+                    <i class="fas fa-circle-notch fa-spin search-loader" style="display: none; position: absolute; right: 2.6rem; color: var(--text-dim);"></i>
+                    <button type="button" class="song-search-close" title="Close search"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="api-search-results existing-results-list" style="display: none; max-height: 250px; overflow-y: auto; margin-top: 0.5rem; position: absolute; top: 100%; left: 0; z-index: 10; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
+            </div>
+            <div class="song-entry-fields">
+                <div class="song-entry-text-inputs">
+                    <input type="text" class="file-card-alias-song" placeholder="Additional song title" autocomplete="off" maxlength="120">
+                    <input type="text" class="file-card-alias-artist" placeholder="Additional artist name" autocomplete="off" maxlength="120">
+                </div>
+                <div class="song-entry-actions">
+                    <button type="button" class="song-search-toggle" title="Search YT Music">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <button type="button" class="btn-remove-song-entry" title="Remove this song">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        const aliasSongInput   = row.querySelector('.file-card-alias-song');
+        const aliasArtistInput = row.querySelector('.file-card-alias-artist');
+        aliasSongInput.addEventListener('input', () => {
+            alias.song = aliasSongInput.value.trim();
+            updateSubmitButtonState();
+        });
+        aliasArtistInput.addEventListener('input', () => {
+            alias.artist = aliasArtistInput.value.trim();
+            updateSubmitButtonState();
+        });
+
+        const unwireSearch = wireYtSearchBox(row);
+
+        row.querySelector('.btn-remove-song-entry').addEventListener('click', () => {
+            entry.aliases = entry.aliases.filter(a => a.id !== alias.id);
+            unwireSearch();
+            row.remove();
+            updateSubmitButtonState();
+        });
+
+        aliasesEl.appendChild(row);
+        updateSubmitButtonState();
+    }
+
+    function setFileCardStatus(entry, state, message) {
+        const card = fileListEl.querySelector(`[data-file-id="${entry.id}"]`);
+        if (!card) return;
+        const statusEl = card.querySelector('.file-card-status');
+        statusEl.className = `file-card-status ${state}`;
+        const icon = state === 'valid' ? 'fa-check-circle' : (state === 'invalid' ? 'fa-times-circle' : 'fa-circle-notch fa-spin');
+        statusEl.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
+    }
+
+    async function runFileValidation(entry) {
+        entry.isValid = false;
+        setFileCardStatus(entry, 'pending', 'Validating…');
         updateSubmitButtonState();
 
-        let formatPass = false, sizePass = false, durationPass = false, aspectPass = false;
-
+        const file = entry.file;
         const ext = file.name.split('.').pop().toLowerCase();
-        if (ext === 'flac') {
-            formatPass = true;
-            setCheckState(checkFormat, 'success');
-        } else {
-            setCheckState(checkFormat, 'error', `Invalid file extension — only <code>.flac</code> is accepted`);
+        if (ext !== 'flac') {
+            setFileCardStatus(entry, 'invalid', 'Invalid extension — only .flac is accepted');
+            updateSubmitButtonState();
+            return;
         }
 
         const sizeMB = file.size / (1024 * 1024);
-        if (sizeMB <= 99.0 && file.size > 0) {
-            sizePass = true;
-            setCheckState(checkSize, 'success', `File size is ${sizeMB.toFixed(2)} MB (&le; 99 MB limit)`);
-        } else {
-            setCheckState(checkSize, 'error', `File size is ${sizeMB.toFixed(2)} MB. Must be under <strong>99 MB</strong>`);
+        if (!(sizeMB <= 99.0 && file.size > 0)) {
+            setFileCardStatus(entry, 'invalid', `File size is ${sizeMB.toFixed(2)} MB — must be under 99 MB`);
+            updateSubmitButtonState();
+            return;
         }
 
-        // Validate fLaC signature (first 4 bytes)
         const reader = new FileReader();
         reader.onload = (e) => {
             const arr = (new Uint8Array(e.target.result)).subarray(0, 4);
             let header = "";
-            for(let i = 0; i < arr.length; i++) header += String.fromCharCode(arr[i]);
-            
-            if (header === "fLaC") {
-                durationPass = true;
-                setCheckState(checkDuration, 'success', `Valid fLaC signature detected`);
-            } else {
-                setCheckState(checkDuration, 'error', `Invalid fLaC signature detected. Must be a valid FLAC audio file.`);
-            }
+            for (let i = 0; i < arr.length; i++) header += String.fromCharCode(arr[i]);
 
-            aspectPass = true;
-            fileIsValid = formatPass && sizePass && durationPass && aspectPass;
+            if (header === "fLaC") {
+                entry.isValid = true;
+                setFileCardStatus(entry, 'valid', `Valid FLAC — ${sizeMB.toFixed(2)} MB`);
+            } else {
+                setFileCardStatus(entry, 'invalid', 'Invalid fLaC signature — not a valid FLAC file');
+            }
             updateSubmitButtonState();
         };
         reader.onerror = () => {
-            setCheckState(checkDuration, 'error', 'Failed to read file.');
-            fileIsValid = false;
+            setFileCardStatus(entry, 'invalid', 'Failed to read file.');
             updateSubmitButtonState();
         };
         reader.readAsArrayBuffer(file.slice(0, 4));
@@ -385,27 +499,35 @@ document.addEventListener('DOMContentLoaded', () => {
         row.dataset.id  = id;
         row.innerHTML = `
             <div class="song-entry-content" style="flex: 1; display: flex; flex-direction: column;">
-                <div class="song-entry-search" style="margin-bottom: 0.75rem;">
+                <div class="song-entry-search" style="display: none; position: relative; margin-bottom: 0.75rem;">
                     <div class="existing-search-box">
                         <i class="fas fa-search existing-search-icon"></i>
                         <input type="text" class="song-api-search" placeholder="Search YT Music for song..." autocomplete="off">
-                        <i class="fas fa-circle-notch fa-spin search-loader" style="display: none; position: absolute; right: 1rem; color: var(--text-dim);"></i>
+                        <i class="fas fa-circle-notch fa-spin search-loader" style="display: none; position: absolute; right: 2.6rem; color: var(--text-dim);"></i>
+                        <button type="button" class="song-search-close" title="Close search"><i class="fas fa-times"></i></button>
                     </div>
-                    <div class="api-search-results existing-results-list" style="display: none; max-height: 250px; overflow-y: auto; margin-top: 0.5rem; position: absolute; z-index: 10; width: calc(100% - 3.5rem); box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
+                    <div class="api-search-results existing-results-list" style="display: none; max-height: 250px; overflow-y: auto; margin-top: 0.5rem; position: absolute; top: 100%; left: 0; z-index: 10; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
                 </div>
                 <div class="song-entry-fields">
-                    <input type="text"
-                           class="song-entry-song"
-                           placeholder="Song title (e.g. Lost in Yesterday)"
-                           autocomplete="off"
-                           maxlength="120"
-                           value="${escapeAttr(songVal)}">
-                    <input type="text"
-                           class="song-entry-artist"
-                           placeholder="Artist name (e.g. Tame Impala)"
-                           autocomplete="off"
-                           maxlength="120"
-                           value="${escapeAttr(artistVal)}">
+                    <div class="song-entry-text-inputs">
+                        <input type="text"
+                               class="song-entry-song"
+                               placeholder="Song title (e.g. Lost in Yesterday)"
+                               autocomplete="off"
+                               maxlength="120"
+                               value="${escapeAttr(songVal)}">
+                        <input type="text"
+                               class="song-entry-artist"
+                               placeholder="Artist name (e.g. Tame Impala)"
+                               autocomplete="off"
+                               maxlength="120"
+                               value="${escapeAttr(artistVal)}">
+                    </div>
+                    <div class="song-entry-actions">
+                        <button type="button" class="song-search-toggle" title="Search YT Music">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
             <button type="button" class="btn-remove-song-entry" title="Remove this entry">
@@ -413,24 +535,60 @@ document.addEventListener('DOMContentLoaded', () => {
             </button>
         `;
 
-        row.querySelector('.btn-remove-song-entry').addEventListener('click', () => {
-            row.remove();
-            updateSongCountBadge();
-            updateSubmitButtonState();
-        });
-
         row.querySelectorAll('input[type="text"]').forEach(inp => {
             inp.addEventListener('input', () => {
                 updateSubmitButtonState();
             });
         });
 
-        const searchInput = row.querySelector('.song-api-search');
-        const resultsContainer = row.querySelector('.api-search-results');
-        const loaderIcon = row.querySelector('.search-loader');
-        const songInput = row.querySelector('.song-entry-song');
-        const artistInput = row.querySelector('.song-entry-artist');
+        const unwireSearch = wireYtSearchBox(row);
+
+        row.querySelector('.btn-remove-song-entry').addEventListener('click', () => {
+            unwireSearch();
+            row.remove();
+            updateSongCountBadge();
+            updateSubmitButtonState();
+        });
+
+        songEntriesList.appendChild(row);
+        updateSongCountBadge();
+        updateSubmitButtonState();
+    }
+
+    // Wires the "Search YT Music for song..." box found inside `container` to
+    // `/api/search`, autofilling the container's .song-entry-song/.song-entry-artist
+    // (or .file-card-song/.file-card-artist) inputs on result click (dispatching a
+    // real 'input' event so each container's own input-listener updates its state).
+    // Shared between addSongEntry() rows and per-file cards so both get song lookup.
+    function wireYtSearchBox(container) {
+        const searchWrapper    = container.querySelector('.song-entry-search');
+        const toggleBtn        = container.querySelector('.song-search-toggle');
+        const closeBtn         = container.querySelector('.song-search-close');
+        const searchInput      = container.querySelector('.song-api-search');
+        const resultsContainer = container.querySelector('.api-search-results');
+        const loaderIcon       = container.querySelector('.search-loader');
+        const songInput        = container.querySelector('.song-entry-song, .file-card-song, .file-card-alias-song');
+        const artistInput      = container.querySelector('.song-entry-artist, .file-card-artist, .file-card-alias-artist');
         let searchTimeout = null;
+
+        function collapseSearch() {
+            searchWrapper.style.display = 'none';
+            searchWrapper.classList.remove('song-search-open');
+            toggleBtn.style.display = '';
+            resultsContainer.style.display = 'none';
+            resultsContainer.innerHTML = '';
+            searchInput.value = '';
+        }
+
+        function openSearch() {
+            searchWrapper.style.display = 'block';
+            searchWrapper.classList.add('song-search-open');
+            toggleBtn.style.display = 'none';
+            searchInput.focus();
+        }
+
+        toggleBtn.addEventListener('click', openSearch);
+        closeBtn.addEventListener('click', collapseSearch);
 
         searchInput.addEventListener('input', () => {
             clearTimeout(searchTimeout);
@@ -449,14 +607,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (window.location.protocol === 'file:') {
                         apiUrl = `https://lossless.echomusic.fun/api/search?q=${encodeURIComponent(query)}`;
                     }
-                    
+
                     const res = await fetch(apiUrl);
                     if (!res.ok) throw new Error('Network response was not ok');
                     const data = await res.json();
-                    
+
                     loaderIcon.style.display = 'none';
                     const items = data.results || [];
-                    
+
                     if (items.length === 0) {
                         resultsContainer.innerHTML = '<p class="existing-no-results">No songs found.</p>';
                         resultsContainer.style.display = 'block';
@@ -467,7 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const songName = item.title || '';
                         const artistName = item.artist || 'Unknown Artist';
                         const thumbnail = item.thumbnail || '';
-                        
+
                         return `
                             <button type="button" class="existing-result-item" data-song="${escapeAttr(songName)}" data-artist="${escapeAttr(artistName)}">
                                 ${thumbnail ? `<img src="${escapeAttr(thumbnail)}" alt="cover" style="width: 40px; height: 40px; border-radius: 4px; margin-right: 1rem; object-fit: cover;">` : ''}
@@ -484,19 +642,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         btn.addEventListener('click', () => {
                             songInput.value = btn.dataset.song;
                             artistInput.value = btn.dataset.artist;
-                            
-                            searchInput.value = '';
-                            resultsContainer.style.display = 'none';
-                            resultsContainer.innerHTML = '';
-                            
+                            songInput.dispatchEvent(new Event('input'));
+                            artistInput.dispatchEvent(new Event('input'));
+
+                            collapseSearch();
+
                             songInput.style.borderColor = 'var(--accent-primary)';
                             artistInput.style.borderColor = 'var(--accent-primary)';
                             setTimeout(() => {
                                 songInput.style.borderColor = '';
                                 artistInput.style.borderColor = '';
                             }, 800);
-                            
-                            updateSubmitButtonState();
                         });
                     });
 
@@ -509,15 +665,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 500);
         });
 
-        document.addEventListener('click', (e) => {
-            if (!row.contains(e.target)) {
+        const outsideClickHandler = (e) => {
+            if (!container.contains(e.target)) {
                 resultsContainer.style.display = 'none';
+                if (searchWrapper.style.display !== 'none' && !searchInput.value.trim()) {
+                    searchWrapper.style.display = 'none';
+                }
             }
-        });
+        };
+        document.addEventListener('click', outsideClickHandler);
 
-        songEntriesList.appendChild(row);
-        updateSongCountBadge();
-        updateSubmitButtonState();
+        // Removed rows/cards must unregister this or it leaks on `document` for
+        // the rest of the session (container stays referenced, listener never fires
+        // usefully again but never gets garbage collected either). Tracked centrally
+        // too so a bulk wipe (resetUploadForm) can clean up rows it didn't remove
+        // one-by-one via their own remove buttons.
+        const unwire = () => document.removeEventListener('click', outsideClickHandler);
+        activeSearchUnwirers.push(unwire);
+        return unwire;
     }
 
     addSongBtn.addEventListener('click', () => addSongEntry());
@@ -536,42 +701,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateSubmitButtonState() {
-        const entries    = getSongEntries();
-        const validEntries = entries.filter(e =>
-            e.song.length > 0 && e.artist.length > 0 &&
-            !/[<>]/.test(e.song) && !/[<>]/.test(e.artist)
-        );
-        const hasSongs = validEntries.length > 0 && validEntries.length === entries.length;
-
         let trackReady = false;
+
         if (trackSourceMode === 'upload') {
-            trackReady = !!(selectedFile && fileIsValid);
+            const validPair = (song, artist) =>
+                song.length > 0 && artist.length > 0 && !/[<>]/.test(song) && !/[<>]/.test(artist);
+
+            trackReady = selectedFiles.length > 0 && selectedFiles.every(f =>
+                f.isValid &&
+                validPair(f.song, f.artist) &&
+                f.aliases.every(a => validPair(a.song, a.artist))
+            );
         } else {
-            trackReady = !!selectedExistingUrl;
+            const entries = getSongEntries();
+            const validEntries = entries.filter(e =>
+                e.song.length > 0 && e.artist.length > 0 &&
+                !/[<>]/.test(e.song) && !/[<>]/.test(e.artist)
+            );
+            const hasSongs = validEntries.length > 0 && validEntries.length === entries.length;
+            trackReady = hasSongs && !!selectedExistingUrl;
         }
 
-        submitBtn.disabled = !(hasSongs && trackReady);
+        submitBtn.disabled = !trackReady;
     }
 
     submitBtn.addEventListener('click', async () => {
         if (submitBtn.disabled) return;
 
-        const entries  = getSongEntries();
         const destDir = "Music";
-
-        for (const entry of entries) {
-            if (/[<>]/g.test(entry.song) || /[<>]/g.test(entry.artist)) {
-                alert('HTML tags are not allowed in song or artist fields.');
-                return;
-            }
-        }
 
         showLoadingView();
 
         try {
             if (trackSourceMode === 'upload') {
-                await submitWithNewUpload(entries, destDir);
+                await submitWithNewUpload(selectedFiles, destDir);
             } else {
+                const entries = getSongEntries();
+                for (const entry of entries) {
+                    if (/[<>]/g.test(entry.song) || /[<>]/g.test(entry.artist)) {
+                        throw new Error('HTML tags are not allowed in song or artist fields.');
+                    }
+                }
                 await submitWithExistingTrack(entries, destDir);
             }
         } catch (error) {
@@ -580,33 +750,52 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    async function submitWithNewUpload(entries, destDir) {
-        const primaryEntry = entries[0]; 
-        const sanitizedOriginalName = selectedFile.name.toLowerCase().replace(/[^a-z0-9._-]/g, '_');
-        const cleanName    = sanitizedOriginalName.split('.')[0];
-        const newFilename  = `${gitHubUsername.toLowerCase()}-${sanitizedOriginalName}`;
-        const targetPath   = `Music/${newFilename}`;
-        const trackUrl    = `https://lossless.echomusic.fun/${targetPath}`;
-        const branchName   = `lossless-${gitHubUsername.toLowerCase()}-${cleanName}`;
+    async function submitWithNewUpload(fileEntries, destDir) {
+        const targetNames = fileEntries.map(f => f.file.name.toLowerCase().replace(/[^a-z0-9._-]/g, '_'));
+        const dupeName = targetNames.find((name, idx) => targetNames.indexOf(name) !== idx);
+        if (dupeName) {
+            throw new Error(`Two selected files would produce the same filename ("${gitHubUsername.toLowerCase()}-${dupeName}"). Rename one of the source files and try again.`);
+        }
+
+        const primaryEntry = fileEntries[0];
+        const branchSlug   = primaryEntry.file.name.toLowerCase().replace(/[^a-z0-9._-]/g, '_').split('.')[0];
+        const branchName   = fileEntries.length === 1
+            ? `lossless-${gitHubUsername.toLowerCase()}-${branchSlug}`
+            : `lossless-${gitHubUsername.toLowerCase()}-batch-${Date.now()}`;
 
         const forkOwner = await forkAndSync(branchName, primaryEntry.song);
 
-        updateLoadingMessage('Uploading Track', `Uploading audio: ${newFilename}…`);
-        const base64Audio = await readFileAsBase64(selectedFile);
+        const uploadedEntries = [];
+        let fileNum = 1;
+        for (const fileEntry of fileEntries) {
+            const sanitizedOriginalName = fileEntry.file.name.toLowerCase().replace(/[^a-z0-9._-]/g, '_');
+            const newFilename = `${gitHubUsername.toLowerCase()}-${sanitizedOriginalName}`;
+            const targetPath  = `Music/${newFilename}`;
+            const trackUrl    = `https://lossless.echomusic.fun/${targetPath}`;
 
-        const uploadRes = await fetch(`${GITHUB_API_URL}/repos/${forkOwner}/${TARGET_REPO}/contents/${targetPath}`, {
-            method: 'PUT',
-            headers: buildHeaders(),
-            body: JSON.stringify({
-                message: `feat: upload lossless track for ${primaryEntry.song}`,
-                content: base64Audio,
-                branch: branchName
-            })
-        });
-        if (!uploadRes.ok) throw new Error('Failed to upload the lossless file to your fork.');
+            updateLoadingMessage('Uploading Tracks', `Uploading ${fileNum}/${fileEntries.length}: ${newFilename}…`);
+            const base64Audio = await readFileAsBase64(fileEntry.file);
 
-        await updateTrackJson(forkOwner, branchName, entries, trackUrl);
-        const prUrl = await openPullRequest(forkOwner, branchName, entries, destDir, targetPath);
+            const uploadRes = await fetch(`${GITHUB_API_URL}/repos/${forkOwner}/${TARGET_REPO}/contents/${targetPath}`, {
+                method: 'PUT',
+                headers: buildHeaders(),
+                body: JSON.stringify({
+                    message: `feat: upload lossless track for ${fileEntry.song}`,
+                    content: base64Audio,
+                    branch: branchName
+                })
+            });
+            if (!uploadRes.ok) throw new Error(`Failed to upload ${newFilename} to your fork.`);
+
+            uploadedEntries.push({ song: fileEntry.song, artist: fileEntry.artist, url: trackUrl });
+            fileEntry.aliases.forEach(alias => {
+                uploadedEntries.push({ song: alias.song, artist: alias.artist, url: trackUrl });
+            });
+            fileNum++;
+        }
+
+        await updateTrackJson(forkOwner, branchName, uploadedEntries);
+        const prUrl = await openPullRequest(forkOwner, branchName, uploadedEntries, destDir);
         showSuccessState(prUrl);
     }
 
@@ -617,8 +806,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const forkOwner = await forkAndSync(branchName, primaryEntry.song);
 
-        await updateTrackJson(forkOwner, branchName, entries, selectedExistingUrl);
-        const prUrl = await openPullRequest(forkOwner, branchName, entries, destDir, selectedExistingUrl);
+        const newEntries = entries.map(e => ({ song: e.song, artist: e.artist, url: selectedExistingUrl }));
+        await updateTrackJson(forkOwner, branchName, newEntries);
+        const prUrl = await openPullRequest(forkOwner, branchName, newEntries, destDir);
         showSuccessState(prUrl);
     }
 
@@ -668,7 +858,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return forkOwner;
     }
 
-    async function updateTrackJson(forkOwner, branchName, entries, trackAudioUrl) {
+    async function updateTrackJson(forkOwner, branchName, entries) {
         updateLoadingMessage('Updating Database', `Adding ${entries.length} song entr${entries.length === 1 ? 'y' : 'ies'} to music.json…`);
 
         const trackApiUrl = `${GITHUB_API_URL}/repos/${forkOwner}/${TARGET_REPO}/contents/music.json?ref=${branchName}`;
@@ -684,12 +874,7 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error('music.json items database is missing or corrupt.');
         }
 
-        const newEntries = entries.map(entry => ({
-            song:   entry.song,
-            artist: entry.artist,
-            url:    trackAudioUrl
-        }));
-        trackObj.items.unshift(...newEntries);
+        trackObj.items.unshift(...entries);
 
         const updatedContent = encodeBase64Utf8(JSON.stringify(trackObj, null, 2) + '\n');
 
@@ -706,7 +891,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!updateRes.ok) throw new Error('Failed to write updated music.json to your fork.');
     }
 
-    async function openPullRequest(forkOwner, branchName, entries, destDir, trackPath) {
+    async function openPullRequest(forkOwner, branchName, entries, destDir) {
         updateLoadingMessage('Submitting Contribution', 'Opening Pull Request on the upstream repository…');
 
         const isSingle = entries.length === 1;
@@ -715,10 +900,10 @@ document.addEventListener('DOMContentLoaded', () => {
             : `feat: add ${entries.length} songs to lossless — ${entries.map(e => e.song).slice(0, 3).join(', ')}${entries.length > 3 ? '…' : ''}`;
 
         const songTable = entries.map(e =>
-            `| ${e.song} | ${e.artist} |`
+            `| ${e.song} | ${e.artist} | \`${e.url}\` |`
         ).join('\n');
 
-        const prBody = `This Pull Request was submitted automatically via the Echo Music Lossless portal.\n\n### 🎵 Submission Metadata\n* **Category:** ${destDir}\n* **Track URL / Path:** \`${trackPath}\`\n* **Total Songs Linked:** ${entries.length}\n\n### 🎶 Song Entries\n| Song Title | Artist |\n|---|---|\n${songTable}\n\n*Validation checks will run automatically on this contribution.*`;
+        const prBody = `This Pull Request was submitted automatically via the Echo Music Lossless portal.\n\n### 🎵 Submission Metadata\n* **Category:** ${destDir}\n* **Total Songs Linked:** ${entries.length}\n\n### 🎶 Song Entries\n| Song Title | Artist | File |\n|---|---|---|\n${songTable}\n\n*Validation checks will run automatically on this contribution.*`;
 
         const prRes = await fetch(`${GITHUB_API_URL}/repos/${TARGET_OWNER}/${TARGET_REPO}/pulls`, {
             method: 'POST',
