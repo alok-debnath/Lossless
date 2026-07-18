@@ -93,7 +93,8 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main
-          
+          git show origin/main:music.json > /tmp/baseline-music.json
+
           if ! git merge origin/main --no-edit; then
             echo "Merge conflict detected! Resolving automatically using auto-fixer..."
           fi
