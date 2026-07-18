@@ -1,6 +1,56 @@
 {
   "items": [
     {
+      "song": "Neeve",
+      "artist": "G.V. Prakash Kumar & Anantha Sriram",
+      "url": "https://lossless.echomusic.fun/Music/jzkskskwiiwi-ship-it-03_-_neeve.flac"
+    },
+    {
+      "song": "Golden Sparrow",
+      "artist": "Wunderbar Films",
+      "url": "https://lossless.echomusic.fun/Music/rupeshrn-Golden_Sparrow.flac"
+    },
+    {
+      "song": "Kannukulla",
+      "artist": "Sai Abhyankkar, Jonita Gandhi & Adesh Krishna",
+      "url": "https://lossless.echomusic.fun/Music/rupeshrn-Kannukulla.flac"
+    },
+    {
+      "song": "Yedi",
+      "artist": "Wunderbar Films",
+      "url": "https://lossless.echomusic.fun/Music/rupeshrn-Yedi.flac"
+    },
+    {
+      "song": "Aasa Kooda (From \"Think Indie\")",
+      "artist": "Sai Abhyankkar",
+      "url": "https://lossless.echomusic.fun/Music/rupeshrn-Aasa_Kooda.flac"
+    },
+    {
+      "song": "Eppadi Vandhaayo (From \"Aaromaley\")",
+      "artist": "Siddhu Kumar, Vignesh Ramakrishna, Chinmayi Sripada & Anand Aravindakshan",
+      "url": "https://lossless.echomusic.fun/Music/rupeshrn-Eppadi_Vandhaayo.flac"
+    },
+    {
+      "song": "Oorum Blood (From \"Dude\")",
+      "artist": "Sai Abhyankkar, Paal Dabba, bebhumika, Deepthi Suresh",
+      "url": "https://lossless.echomusic.fun/Music/rupeshrn-Oorum_Blood.flac"
+    },
+    {
+      "song": "Oru Manam (From 'Dhruva Natchathiram')",
+      "artist": "Karthik, Shashaa Tirupati",
+      "url": "https://lossless.echomusic.fun/Music/rupeshrn-Oru_Manam.flac"
+    },
+    {
+      "song": "Oh Baby Girl (From 'Maalai Pozhudhin Mayakathilaey')",
+      "artist": "Achu, Hemachandra",
+      "url": "https://lossless.echomusic.fun/Music/rupeshrn-Oh_Baby_Girl.flac"
+    },
+    {
+      "song": "BAD",
+      "artist": "ATEEZ",
+      "url": "https://lossless.echomusic.fun/Music/himmax-sato-00_-_ateez_-_bad.flac"
+    },
+    {
       "song": "Let Me Love You (feat. Justin Bieber)",
       "artist": "DJ Snake",
       "url": "https://lossless.echomusic.fun/Music/shivanium-git-dj_snake_-_let_me_love_you.flac"
@@ -2304,6 +2354,61 @@
       "song": "Won’t Let Go",
       "artist": "Em Beihold",
       "url": "https://lossless.echomusic.fun/Music/alok-debnath-em_beihold_-_wont_let_go.flac"
+    },
+    {
+      "song": "Dog Prophecies",
+      "artist": "Josie Edwards",
+      "url": "https://lossless.echomusic.fun/Music/alok-debnath-josie_edwards_-_dog_prophecies.flac"
+    },
+    {
+      "song": "Gravedigger",
+      "artist": "Josie Edwards",
+      "url": "https://lossless.echomusic.fun/Music/alok-debnath-josie_edwards_-_gravedigger.flac"
+    },
+    {
+      "song": "Kerosene",
+      "artist": "Josie Edwards",
+      "url": "https://lossless.echomusic.fun/Music/alok-debnath-josie_edwards_-_kerosene.flac"
+    },
+    {
+      "song": "New House",
+      "artist": "Josie Edwards",
+      "url": "https://lossless.echomusic.fun/Music/alok-debnath-josie_edwards_-_new_house.flac"
+    },
+    {
+      "song": "The Great Escape",
+      "artist": "Josie Edwards",
+      "url": "https://lossless.echomusic.fun/Music/alok-debnath-josie_edwards_-_the_great_escape.flac"
+    },
+    {
+      "song": "The Poet and Her Vice (Happy Ending)",
+      "artist": "Josie Edwards",
+      "url": "https://lossless.echomusic.fun/Music/alok-debnath-josie_edwards_-_the_poet_and_her_vice_happy_ending.flac"
+    },
+    {
+      "song": "do you see me now (voice note)",
+      "artist": "Josie Edwards",
+      "url": "https://lossless.echomusic.fun/Music/alok-debnath-josie_edwards_-_do_you_see_me_now_voice_note.flac"
+    },
+    {
+      "song": "good girls",
+      "artist": "Josie Edwards",
+      "url": "https://lossless.echomusic.fun/Music/alok-debnath-josie_edwards_-_good_girls.flac"
+    },
+    {
+      "song": "high hope",
+      "artist": "Josie Edwards",
+      "url": "https://lossless.echomusic.fun/Music/alok-debnath-josie_edwards_-_high_hope.flac"
+    },
+    {
+      "song": "kitchen light",
+      "artist": "Josie Edwards",
+      "url": "https://lossless.echomusic.fun/Music/alok-debnath-josie_edwards_-_kitchen_light.flac"
+    },
+    {
+      "song": "note to self.",
+      "artist": "Josie Edwards",
+      "url": "https://lossless.echomusic.fun/Music/alok-debnath-josie_edwards_-_note_to_self.flac"
     }
   ]
 }
